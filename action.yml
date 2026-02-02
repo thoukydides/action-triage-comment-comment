@@ -1,0 +1,150 @@
+name: Triage Comment Comment
+author: Alexander Thoukydides
+description: Use AI to assess the first comment by a user on an issue and post a new comment if off-topic
+branding:
+  icon: 'check-square'
+  color: 'blue'
+
+inputs:
+  gemini_api_key:
+    description: The Google AI Studio Gemini API key
+    required: true
+    type: string
+  issue_number:
+    description: The GitHub issue to analyse
+    type: number
+    required: true
+  comment_id:
+    description: The GitHub comment to analyse; omit to process the most recent comment on the issue
+    type: number
+  guidance_file:
+    description: Path to a file containing project-specific guidance for the AI when assessing the issue quality
+    type: string
+    required: true
+  guidance_file_tokens:
+    description: Size of the guidance_file contents in tokens (used to calculate the input tokens required for the prompt)
+    type: number
+    required: true
+  dry_run:
+    description: Disables actions that modify the issue (adding the comment and minimising previous comments) for testing
+    type: boolean
+    required: false
+
+runs:
+  using: composite
+
+  steps:
+    - name: Identify the comment and check if it is the user's first on this issue
+      id: check
+      uses: actions/github-script@v7
+      env:
+        INPUT_ISSUE_NUMBER:         ${{ inputs.issue_number }}
+        INPUT_COMMENT_ID:           ${{ inputs.comment_id }}
+        INPUT_GUIDANCE_FILE_TOKENS: ${{ inputs.guidance_file_tokens }}
+        INPUT_PROMPT_TOKENS:        1400 # Measured using https://aistudio.google.com/prompts/new_chat
+      with:
+        result-encoding: string
+        script: | # javascript
+          const { default: fn } = await import('${{ github.action_path }}/dist/index.js');
+          return await fn(github);
+
+    - name: Analyse the issue quality
+      if: ${{ steps.check.outputs.is_first_comment == 'true' }}
+      id: quality-ai
+      uses: thoukydides/action-issue-ai-summary@v1
+      with:
+        gemini_api_key:       ${{ inputs.gemini_api_key }}
+        issue_number:         ${{ inputs.issue_number }}
+        prompt_file:          ${{ github.action_path }}/comment-quality-comment.prompt.yml
+        input_prompt_tokens:  ${{ steps.check.outputs.prompt_tokens }}
+        prompt_vars: | # yaml
+          comment:    ${{ toJSON(steps.check.outputs.result) }}
+          commenter:  ${{ steps.check.outputs.comment_user }}
+        prompt_vars_files: | # yaml
+          guidance:   ${{ inputs.guidance_file }}
+
+    - name: Choose action
+      if: ${{ steps.check.outputs.is_first_comment == 'true' }}
+      id: quality-post
+      uses: actions/github-script@v7
+      env:
+        IS_FIRST_COMMENT: ${{ steps.check.outputs.is_first_comment }}
+        RESPONSE:         ${{ steps.quality-ai.outputs.response }}
+      with:
+        result-encoding: string
+        script: | # javascript
+          const response = JSON.parse(process.env.RESPONSE);
+
+          // Fail the job if the model's confidence is too low
+          if (response.confidence_score <= 2) {
+              core.setFailed(`AI confidence score (${response.confidence_score} out of 5) is too low for automatic processing`);
+          }
+
+          // Default to the model's responses
+          let { response_comment, minimise_user_comment_reason: minimise_comment } = response;
+
+          // Override the model if its choices are inconsistent
+          const { relevance_level, contains_new_request } = response;
+          switch (minimise_comment) {
+          case 'off_topic':
+              if (relevance_level !== 'not relevant') {
+                  minimise_comment = ''; // (comment has some relevance to the issue)
+                  core.warning(`Overriding off_topic minimisation for ${relevance_level} comment`);
+              } else if (response_comment === '') {
+                  minimise_comment = ''; // (no explanation provided for being off-topic)
+                  core.warning('Overriding off_topic minimisation without a response comment');
+              }
+              break;
+          case 'abuse':
+              if (response_comment === '') {
+                  minimise_comment = ''; // (require an explanation)
+                  core.warning('Overriding abuse minimisation without a response comment');
+              }
+              break;
+          case 'spam':
+              if (response_comment !== '') {
+                  response_comment = ''; // (don't add to spam by posting a comment)
+                  core.warning('Overriding response comment for spam response');
+              }
+              break;
+          case '':
+              if (contains_new_request === 'none' && response_comment !== '') {
+                  response_comment = ''; // (don't post comments without reason)
+                  core.warning('Overriding response comment without cause');
+              }
+              break;
+          }
+
+          // Set common outputs
+          core.setOutput('response_comment',   response_comment);
+          core.setOutput('minimise_comment',   minimise_comment);
+
+    - name: Post comment
+      if: ${{ steps.quality-post.outputs.response_comment }}
+      uses: thoukydides/action-post-issue-comment@v1
+      with:
+        issue_number: ${{ inputs.issue_number }}
+        body:         ${{ steps.quality-post.outputs.response_comment }}
+        marker:       '<!-- ai-triage-comment-analysis -->'
+        dry_run:      ${{ inputs.dry_run }}
+
+    - name: Minimise user comment
+      if: ${{ steps.quality-post.outputs.minimise_comment && !inputs.dry_run }}
+      uses: actions/github-script@v7
+      env:
+        COMMENT_NODE_ID:  ${{ steps.check.outputs.comment_node_id }}
+        MINIMISE_REASON:  ${{ steps.quality-post.outputs.minimise_comment }}
+      with:
+        script: | # javascript
+          const GRAPHQL_MUTATION =
+              `mutation($input: MinimizeCommentInput!) {
+                  minimizeComment(input: $input) {
+                      clientMutationId
+                  }
+              }`;
+          await github.graphql(GRAPHQL_MUTATION, {
+            input: {
+              subjectId:  process.env.COMMENT_NODE_ID,
+              classifier: process.env.MINIMISE_REASON.toUpperCase().replaceAll('-', '_')
+            }
+          });
