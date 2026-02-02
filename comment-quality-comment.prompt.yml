@@ -35,7 +35,7 @@ messages:
       - Only flag unrelated issues if they are genuinely independent
       - If comment identified as spam, do not draft a response; only set the minimisation reason
       - Use British English
-      - Format comments using GitHub-flavoured Markdown and appropriate emojis
+      - Format comment using GitHub-flavoured Markdown, using emoji sparingly to enhance readability
 
       {{guidance}}
 
@@ -82,7 +82,7 @@ jsonSchema: |- # json
         },
         "response_comment": {
           "type": "string",
-          "description": "Markdown comment addressed to @{{commenter}}; empty if no response is needed"
+          "description": "Markdown comment addressed to the commentor; empty if no response is needed"
         },
         "minimise_user_comment_reason": {
           "enum": ["off_topic", "spam", "abuse", ""],

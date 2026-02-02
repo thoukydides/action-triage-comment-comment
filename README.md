@@ -66,7 +66,6 @@ jobs:
   triage-comment:
     runs-on: ubuntu-latest
     if: ${{ !github.event.issue.pull_request }}
-    needs: [run-test, api-changelog]
     steps:
       - uses: actions/checkout@v4
       - name: AI issue comment triage
