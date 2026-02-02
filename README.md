@@ -81,7 +81,7 @@ jobs:
 ```
 
 > [!TIP]
-> The `issues_comment` trigger is used for both issues and pull requests; use `if: ${{ !github.event.issue.pull_request }}` to run the job for comments on issues only.
+> The `issue_comment` trigger is used for both issues and pull requests; use `if: ${{ !github.event.issue.pull_request }}` to run the job for comments on issues only.
 
 ## ISC License (ISC)
 
