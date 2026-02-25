@@ -59,44 +59,40 @@ responseFormat: json_schema
 
 jsonSchema: |- # json
   {
-    "name": "Issue comment off-topic assessment",
-    "strict": true,
-    "schema": {
-      "type": "object",
-      "properties": {
-        "relevance_level": {
-          "enum": ["directly relevant", "tangentially relevant", "not relevant"],
-          "type": "string",
-          "description": "The degree to which the comment relates to the original issue thread"
-        },
-        "contains_new_request": {
-          "enum": ["none", "bug report", "feature request", "support query"],
-          "type": "string",
-          "description": "Identifies if a new topic is introduced that should be handled separately"
-        },
-        "confidence_score": {
-          "type": "integer",
-          "description": "Confidence in this assessment: 1 or 2 = ambiguous comments where a human should double-check, 3 or 4 = likely correct, 5 = absolute certainty",
-          "minimum": 1,
-          "maximum": 5
-        },
-        "response_comment": {
-          "type": "string",
-          "description": "Markdown comment addressed to the commentor; empty if no response is needed"
-        },
-        "minimise_user_comment_reason": {
-          "enum": ["off_topic", "spam", "abuse", ""],
-          "type": "string",
-          "description": "Reason for hiding the comment; use 'off_topic' only if relevance_level is 'not relevant'"
-        }
+    "type": "object",
+    "properties": {
+      "relevance_level": {
+        "enum": ["directly relevant", "tangentially relevant", "not relevant"],
+        "type": "string",
+        "description": "The degree to which the comment relates to the original issue thread"
       },
-      "additionalProperties": false,
-      "required": [
-        "relevance_level",
-        "contains_new_request",
-        "confidence_score",
-        "response_comment",
-        "minimise_user_comment_reason"
-      ]
-    }
+      "contains_new_request": {
+        "enum": ["none", "bug report", "feature request", "support query"],
+        "type": "string",
+        "description": "Identifies if a new topic is introduced that should be handled separately"
+      },
+      "confidence_score": {
+        "type": "integer",
+        "description": "Confidence in this assessment: 1 or 2 = ambiguous comments where a human should double-check, 3 or 4 = likely correct, 5 = absolute certainty",
+        "minimum": 1,
+        "maximum": 5
+      },
+      "response_comment": {
+        "type": "string",
+        "description": "Markdown comment addressed to the commentor; empty if no response is needed"
+      },
+      "minimise_user_comment_reason": {
+        "enum": ["off_topic", "spam", "abuse", ""],
+        "type": "string",
+        "description": "Reason for hiding the comment; use 'off_topic' only if relevance_level is 'not relevant'"
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "relevance_level",
+      "contains_new_request",
+      "confidence_score",
+      "response_comment",
+      "minimise_user_comment_reason"
+    ]
   }
