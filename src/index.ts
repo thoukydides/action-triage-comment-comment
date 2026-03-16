@@ -2,7 +2,7 @@
 // Copyright © 2026 Alexander Thoukydides
 
 import * as core from '@actions/core';
-import { GitHub } from '@actions/github/lib/utils.js';
+import { GitHub } from '@actions/github/lib/utils';
 import { getIssue, IssueMetadataItem } from './get_issue.js';
 import { assertIsDefined, plural } from './utils.js';
 import { textTokens } from './tokens.js';

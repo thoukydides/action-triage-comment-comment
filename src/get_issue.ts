@@ -2,9 +2,9 @@
 // Copyright © 2026 Alexander Thoukydides
 
 import { context } from '@actions/github';
-import { GitHub } from '@actions/github/lib/utils.js';
+import { GitHub } from '@actions/github/lib/utils';
 import { components } from '@octokit/openapi-types';
-import { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types.js';
+import { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods';
 import * as core from '@actions/core';
 import { plural } from './utils.js';
 
@@ -75,6 +75,6 @@ function authorAssociationToRole(comment: RestIssue | RestComment): Role {
     } satisfies Record<AuthorAssociation, Role>;
     if (comment.user?.login.endsWith('[bot]')) return 'Bot';
     return TYPE_TO_ROLE[comment.user?.type ?? '']
-        ?? ASSOCIATION_TO_ROLE[comment.author_association]
+        ?? ASSOCIATION_TO_ROLE[comment.author_association ?? '']
         ?? 'Unknown';
 }
