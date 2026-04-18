@@ -36,7 +36,7 @@ runs:
   steps:
     - name: Identify the comment and check if it is the user's first on this issue
       id: check
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         INPUT_ISSUE_NUMBER:         ${{ inputs.issue_number }}
         INPUT_COMMENT_ID:           ${{ inputs.comment_id }}
@@ -66,7 +66,7 @@ runs:
     - name: Choose action
       if: ${{ steps.check.outputs.is_first_comment == 'true' }}
       id: quality-post
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         RESPONSE:         ${{ steps.quality-ai.outputs.response }}
       with:
@@ -129,7 +129,7 @@ runs:
 
     - name: Minimise user comment
       if: ${{ steps.quality-post.outputs.minimise_comment && inputs.dry_run != 'true' }}
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         COMMENT_NODE_ID:  ${{ steps.check.outputs.comment_node_id }}
         MINIMISE_REASON:  ${{ steps.quality-post.outputs.minimise_comment }}
