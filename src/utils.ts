@@ -9,6 +9,16 @@ export function assertIsDefined<Type>(value: Type): asserts value is NonNullable
     assert.notStrictEqual(value, null);
 }
 
+// Format a list (with Oxford comma)
+export function formatList(items: string[]): string {
+    switch (items.length) {
+    case 0:     return 'n/a';
+    case 1:     return items[0] ?? '';
+    case 2:     return `${items[0]} and ${items[1]}`;
+    default:    return [...items.slice(0, -1), `and ${items[items.length - 1]}`].join(', ');
+    }
+}
+
 // Format a counted noun (handling most regular cases automatically)
 export function plural(count: number, noun: string | [string, string], showCount = true): string {
     const [singular, plural] = Array.isArray(noun) ? noun : [noun, ''];

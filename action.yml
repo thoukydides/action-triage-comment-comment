@@ -25,6 +25,10 @@ inputs:
     description: Size of the guidance_file contents in tokens (used to calculate the input tokens required for the prompt)
     type: number
     required: true
+  labels_remove:
+    description: Remove a list of labels from the issue (JSON array of strings)
+    type: string
+    default: ''
   dry_run:
     description: Disables actions that modify the issue (adding the comment and minimising previous comments) for testing
     type: boolean
@@ -42,6 +46,7 @@ runs:
         INPUT_COMMENT_ID:           ${{ inputs.comment_id }}
         INPUT_GUIDANCE_FILE_TOKENS: ${{ inputs.guidance_file_tokens }}
         INPUT_PROMPT_TOKENS:        1400 # Measured using https://aistudio.google.com/prompts/new_chat
+        INPUT_LABELS_REMOVE:        ${{ inputs.labels_remove }}
       with:
         result-encoding: string
         script: | # javascript

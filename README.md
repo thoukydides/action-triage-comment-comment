@@ -1,7 +1,7 @@
 # `action-triage-comment-comment`
 
-This action uses Google Gemini to analyse the first comment by a user on a particular issue, assessing its relevance to the issue, and then posts a comment if off-topic. At a high level, the action performs the following steps:
-- **First Comment Check:** Aborts processing if the comment was posted by the user who has commented previously on the same issue, who created the issue, or who is either a project maintainer or a bot.
+This action uses Google Gemini to analyse the first comment by a user on a particular issue, assessing its relevance to the issue, and then posts a comment if off-topic. It also removes any `stale` label from the issue. At a high level, the action performs the following steps:
+- **First Comment Check:** Remove specified labels from the issue unless the comment is by either a project maintainer or a bot. Aborts processing if the comment was posted by the user who has commented previously on the same issue, who created the issue, or who is either a project maintainer or a bot.
 - **Review Issue Quality:** Uses Google AI Studio to check whether the comment is raising an issue that is not sufficiently related to the main issue. If it is off-topic then the model drafts a comment advising the user how to proceed.
 - **Post Comment:** If the review produced a comment then post it and optionally minimise the user's comment.
 
@@ -29,6 +29,7 @@ Various inputs are defined in the action to configure its operation:
 | `comment_id` | The GitHub comment to analyse; omit to process the most recent comment on the issue | &nbsp;
 | `guidance_file` | Path to a file containing project-specific guidance for the AI when assessing the comment quality | *required*
 | `guidance_file_tokens` | Size of the guidance_file contents in tokens (used to calculate the input tokens required for the prompt) | *required*
+| `labels_remove` | Remove a list of labels from the issue (JSON array of strings) | `''`
 | `dry_run` | Disables actions that modify the issue (adding the comment and minimising previous comments) for testing | `false`
 
 > [!CAUTION]
@@ -36,7 +37,7 @@ Various inputs are defined in the action to configure its operation:
 
 ## Usage
 
-Example workflow to consider whether any automated test errors or API changelog are relevant to a newly opened issue:
+Example workflow to remove any `stale` label when a user posts a new comment, and to triage the contents of the comment if it by a new user on this issue:
 
 ```yaml
 name: Triage Issue Comment
@@ -76,6 +77,7 @@ jobs:
           comment_id: ${{ github.event.comment.id || fromJson(inputs.comment_id) }}
           guidance_file: ./.github/prompts/issue-quality-guidance.md
           guidance_file_tokens: 650
+          labels_remove: '["stale"]'
           dry_run: ${{ inputs.dry_run }}
 ```
 

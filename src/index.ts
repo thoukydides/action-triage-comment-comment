@@ -6,6 +6,7 @@ import { GitHub } from '@actions/github/lib/utils';
 import { getIssue, IssueMetadataItem } from './get_issue.js';
 import { assertIsDefined, plural } from './utils.js';
 import { textTokens } from './tokens.js';
+import { updateLabels } from './labels.js';
 
 // Script entry point
 export default async function run(github: InstanceType<typeof GitHub>): Promise<string> {
@@ -14,6 +15,7 @@ export default async function run(github: InstanceType<typeof GitHub>): Promise<
     const comment_id            = Number(core.getInput('comment_id',            { required: false }));
     const guidance_file_tokens  = Number(core.getInput('guidance_file_tokens',  { required: true }));
     const prompt_tokens         = Number(core.getInput('prompt_tokens',         { required: true }));
+    const labels_remove         =        core.getInput('labels_remove',         { required: false });
 
     // Retrieve the metadata for the issue and its comments
     const { issue, comments } = await getIssue(github, issue_number);
@@ -41,6 +43,9 @@ export default async function run(github: InstanceType<typeof GitHub>): Promise<
 
     // Exclude comments by maintainers and bots
     const isUserComment = comment.role === 'User';
+    if (isUserComment && labels_remove) {
+        await updateLabels(github, issue_number, { labels_set: '', labels_remove, labels_add: '' });
+    }
 
     // Check whether this is the first comment by the user
     // (only check comments with lower IDs)

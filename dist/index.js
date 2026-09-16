@@ -10,7 +10,7 @@ import 'net';
 import require$$1 from 'tls';
 import events$1 from 'events';
 import assert from 'assert';
-import require$$6 from 'util';
+import require$$6, { isDeepStrictEqual } from 'util';
 import require$$0$1 from 'node:assert';
 import require$$0$3 from 'node:net';
 import require$$2 from 'node:http';
@@ -33062,6 +33062,15 @@ function assertIsDefined(value) {
     assert.notStrictEqual(value, undefined);
     assert.notStrictEqual(value, null);
 }
+// Format a list (with Oxford comma)
+function formatList(items) {
+    switch (items.length) {
+        case 0: return 'n/a';
+        case 1: return items[0] ?? '';
+        case 2: return `${items[0]} and ${items[1]}`;
+        default: return [...items.slice(0, -1), `and ${items[items.length - 1]}`].join(', ');
+    }
+}
 // Format a counted noun (handling most regular cases automatically)
 function plural(count, noun, showCount = true) {
     const [singular, plural] = Array.isArray(noun) ? noun : [noun, ''];
@@ -33461,6 +33470,62 @@ function textTokens(text) {
 
 // GitHub action
 // Copyright © 2026 Alexander Thoukydides
+// Change the labels associated with an issue
+async function updateLabels(github, issue_number, options) {
+    if (!options.labels_set && !options.labels_remove && !options.labels_add)
+        return;
+    // Read the repository's and issue's current labels
+    const repoLabels = getLabelNames('repository', await github.paginate(github.rest.issues.listLabelsForRepo, { ...context.repo, per_page: 100 }));
+    const currentLabels = getLabelNames('issue', await github.paginate(github.rest.issues.listLabelsOnIssue, { ...context.repo, per_page: 100, issue_number }));
+    // Parse the options
+    const setLabels = parseLabels(repoLabels, 'labels_set', options.labels_set);
+    const removeLabels = parseLabels(repoLabels, 'labels_remove', options.labels_remove);
+    const addLabels = parseLabels(repoLabels, 'labels_add', options.labels_add);
+    // Determine the new set of labels
+    let newLabels = currentLabels;
+    if (setLabels)
+        newLabels = setLabels;
+    if (removeLabels)
+        newLabels = newLabels.filter(l => !removeLabels.includes(l));
+    if (addLabels)
+        newLabels = [...new Set([...newLabels, ...addLabels])];
+    newLabels.sort();
+    // Check whether any changes are required
+    if (isDeepStrictEqual(newLabels, currentLabels)) {
+        info('No changes required to issue labels');
+        return;
+    }
+    // Apply the new labels
+    await github.rest.issues.setLabels({ ...context.repo, issue_number, labels: newLabels });
+    info(`Applied issue labels: ${formatList(newLabels)}`);
+}
+function getLabelNames(description, labelsResponse) {
+    const labels = labelsResponse.map(label => label.name).sort();
+    info(`${description} labels: ${formatList(labels)}`);
+    return labels;
+}
+// Parse a JSON string listing labels
+function parseLabels(repoLabels, description, labels) {
+    if (!labels)
+        return undefined;
+    try {
+        const result = JSON.parse(labels);
+        if (!Array.isArray(result))
+            throw new Error('Not an array');
+        if (result.some(l => typeof l !== 'string'))
+            throw new Error('Array contains non-strings');
+        if (!result.every(label => repoLabels.includes(label)))
+            throw new Error('Unknown labels');
+        return result;
+    }
+    catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        throw new Error(`Invalid ${description}: ${message}`, { cause });
+    }
+}
+
+// GitHub action
+// Copyright © 2026 Alexander Thoukydides
 // Script entry point
 async function run(github) {
     // Action inputs
@@ -33468,6 +33533,7 @@ async function run(github) {
     const comment_id = Number(getInput('comment_id', { required: false }));
     const guidance_file_tokens = Number(getInput('guidance_file_tokens', { required: true }));
     const prompt_tokens = Number(getInput('prompt_tokens', { required: true }));
+    const labels_remove = getInput('labels_remove', { required: false });
     // Retrieve the metadata for the issue and its comments
     const { issue, comments } = await getIssue(github, issue_number);
     if (!comments.length)
@@ -33494,6 +33560,9 @@ async function run(github) {
     info(`Issue #${issue_number} comment ${comment.id} by ${comment.role} @${comment.author}`);
     // Exclude comments by maintainers and bots
     const isUserComment = comment.role === 'User';
+    if (isUserComment && labels_remove) {
+        await updateLabels(github, issue_number, { labels_set: '', labels_remove, labels_add: '' });
+    }
     // Check whether this is the first comment by the user
     // (only check comments with lower IDs)
     const isFirstByUser = comment.author !== issue.author
